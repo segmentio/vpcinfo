@@ -9,12 +9,6 @@ variable "domain" {
   description = "Name of the domain name under which the VPC information will be made available."
 }
 
-variable "max_subnet_count" {
-  type        = "string"
-  default     = "32"
-  description = "This input variable is used as a workaround for terraform requiring count properties to have a known value at 'compile time', just set it to something larger than the number of subnets in your VPC."
-}
-
 data "aws_subnet_ids" "subnets" {
   vpc_id = "${var.vpc_id}"
 }
@@ -24,14 +18,10 @@ data "aws_subnet" "list" {
   id    = "${element(data.aws_subnet_ids.subnets.ids, count.index)}"
 }
 
-locals {
-  subnet_ids   = "${slice(data.aws_subnet.list.*.id, 0, length(data.aws_subnet_ids.subnets.ids))}"
-  subnet_cidrs = "${slice(data.aws_subnet.list.*.cidr_block, 0, length(data.aws_subnet_ids.subnets.ids))}"
-  subnet_zones = "${slice(data.aws_subnet.list.*.availability_zone, 0, length(data.aws_subnet_ids.subnets.ids))}"
-}
-
 resource "aws_route53_zone" "vpc" {
-  name = "${var.domain}"
+  name          = "${var.domain}"
+  comment       = "DNS zone managed by https://github.com/segmentio/vpcinfo, contains TXT records carrying information about the VPC."
+  force_destroy = true
 
   vpc {
     vpc_id = "${var.vpc_id}"
@@ -45,6 +35,6 @@ resource "aws_route53_record" "subnets" {
   type    = "TXT"
 
   records = [
-    "${formatlist("subnet=%s,cidr=%s,zone=%s", local.subnet_ids, local.subnet_cidrs, local.subnet_zones)}",
+    "${formatlist("subnet=%s,cidr=%s,zone=%s", data.aws_subnet.list.*.id, data.aws_subnet.list.*.cidr_block, data.aws_subnet.list.*.availability_zone)}",
   ]
 }
