@@ -27,7 +27,7 @@ data "aws_subnet" "list" {
 locals {
   subnet_ids   = "${slice(data.aws_subnet.list.*.id, 0, length(data.aws_subnet_ids.subnets.ids))}"
   subnet_cidrs = "${slice(data.aws_subnet.list.*.cidr_block, 0, length(data.aws_subnet_ids.subnets.ids))}"
-  subnet_zones = "${slice(data.aws_subnet.list.*..availability_zone, 0, length(data.aws_subnet_ids.subnets.ids))}"
+  subnet_zones = "${slice(data.aws_subnet.list.*.availability_zone, 0, length(data.aws_subnet_ids.subnets.ids))}"
 }
 
 resource "aws_route53_zone" "vpc" {
