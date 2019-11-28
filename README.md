@@ -45,10 +45,11 @@ The strength of this approach is it applies across an entire infrastructure
 without having to make code changes to the services being monitored, we were
 able to quickly get deep insight into some of our networks.
 
-The weakness of this approach is in how much data can be read by the monitoring
-tool, usually limited to _raw_ data. In our experience, most of the value is in
-connecting network topology to high-level information that only the applications
-have access to, because we can then tie product use cases to resource usage.
+The weakness of this approach is in how much insight can be gathered by the
+monitoring tool, usually limited to _raw_ data. In our experience, most of the
+value is in connecting network topology to high-level information that only the
+applications have access to, because we can then tie product use cases to
+resource usage.
 
 ## Design
 
