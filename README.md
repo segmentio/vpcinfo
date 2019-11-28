@@ -1,4 +1,4 @@
-# vpcinfo [![GoDoc](https://godoc.org/github.com/segmentio/vpcinfo?status.svg)](https://godoc.org/github.com/segmentio/vpcinfo)
+# vpcinfo [![Circle CI](https://circleci.com/gh/segmentio/vpcinfo.svg?style=svg&circle-token=e58118c6b28b14de098ff718d69439257011eebe)](https://circleci.com/gh/segmentio/vpcinfo) [![GoDoc](https://godoc.org/github.com/segmentio/vpcinfo?status.svg)](https://godoc.org/github.com/segmentio/vpcinfo)
 Experimental model for distributing non-sensitive VPC information.
 
 ## Motivation
