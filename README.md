@@ -91,13 +91,10 @@ import (
 )
 
 func main() {
-    subnets, err := vpcinfo.LookupSubnets()
-    if err != nil {
-        fmt.Println(err)
-    } else {
-        for _, s := range subnets {
-            fmt.Println(s)
-        }
+    subnets, _ := vpcinfo.LookupSubnets()
+
+    for _, s := range subnets {
+        fmt.Println(s)
     }
 }
 ```
