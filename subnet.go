@@ -19,13 +19,33 @@ func (s Subnet) String() string {
 // Subnets is a slice type which represents a list of subnets.
 type Subnets []Subnet
 
-// ZoneOf returns the zone that ip belongs to, or and empty string if it wasn't
-// part of any subnets.
-func (subnets Subnets) ZoneOf(ip net.IP) string {
-	for _, s := range subnets {
-		if s.CIDR != nil && s.CIDR.Contains(ip) {
-			return s.Zone
+// LookupAddr returns the subnet that addr belongs to.
+func (subnets Subnets) LookupAddr(addr net.Addr) Subnet {
+	var ip net.IP
+	switch a := addr.(type) {
+	case *net.TCPAddr:
+		ip = a.IP
+	case *net.UDPAddr:
+		ip = a.IP
+	case *net.IPAddr:
+		ip = a.IP
+	case *net.UnixAddr:
+		ip = nil
+	default:
+		host, _, _ := net.SplitHostPort(a.String())
+		ip = net.ParseIP(host)
+	}
+	return subnets.LookupIP(ip)
+}
+
+// LookupIP returns the subnet that ip belongs to
+func (subnets Subnets) LookupIP(ip net.IP) Subnet {
+	if ip != nil {
+		for _, s := range subnets {
+			if s.CIDR != nil && s.CIDR.Contains(ip) {
+				return s
+			}
 		}
 	}
-	return ""
+	return Subnet{}
 }

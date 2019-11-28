@@ -49,10 +49,10 @@ func TestSubnets(t *testing.T) {
 		copy(ip, s.CIDR.IP)
 		ip[len(ip)-1] = 1
 
-		if z := testSubnets.ZoneOf(ip); z != s.Zone {
-			t.Error("zone mismatch for", ip)
-			t.Log("expected:", s.Zone)
-			t.Log("found:   ", z)
+		if x := testSubnets.LookupAddr(&net.TCPAddr{IP: ip, Port: 4242}); x != s {
+			t.Error("subnet mismatch for", ip)
+			t.Log("expected:", s)
+			t.Log("found:   ", x)
 		}
 	}
 }
@@ -61,6 +61,6 @@ func BenchmarkSubnetsZoneOf(b *testing.B) {
 	ip := net.ParseIP("10.31.32.33")
 
 	for i := 0; i < b.N; i++ {
-		_ = testSubnets.ZoneOf(ip)
+		_ = testSubnets.LookupIP(ip)
 	}
 }
