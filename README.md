@@ -87,6 +87,8 @@ Here is an example of looking up the list of subnets in the VPC:
 package main
 
 import (
+    "fmt"
+
     "github.com/segmentio/vpcinfo"
 )
 
