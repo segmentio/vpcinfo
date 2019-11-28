@@ -1,3 +1,7 @@
+// Package vpcinfo provides APIs to extract VPC information from DNS resolvers.
+//
+// The library abstract parsing and caching of VPC information resolved from TXT
+// records, as configured by the terraform modules in this repository.
 package vpcinfo
 
 import (
@@ -17,7 +21,7 @@ var DefaultRegistry = &Registry{
 }
 
 // LookupSubnets returns the list of subnets in the VPC.
-func LookupSubnets() ([]Subnet, error) {
+func LookupSubnets() (Subnets, error) {
 	return DefaultRegistry.LookupSubnets(context.Background())
 }
 

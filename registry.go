@@ -31,10 +31,9 @@ type Registry struct {
 
 // LookupSubnets returns the list of subnets in the VPC.
 //
-// The returned list of subnets is ordered by IP address and mask (smallest IP
-// and largest mask first). Multiple calls to this method may return the same
-// Subnets value, programs should treat it as a read-only value and avoid
-// modifying it to prevent race conditions.
+// Multiple calls to this method may return the same Subnets value, programs
+// should treat it as a read-only value and avoid modifying it to prevent race
+// conditions.
 func (r *Registry) LookupSubnets(ctx context.Context) (Subnets, error) {
 	v, err := r.subnets.load(time.Now(), r.ttl(), func() (interface{}, error) {
 		records, err := r.resolver().LookupTXT(ctx, "subnets")
@@ -79,15 +78,16 @@ type cache struct {
 }
 
 type value struct {
-	value interface{}
-	err   error
-	evict time.Time
+	value  interface{}
+	err    error
+	update time.Time
+	expire time.Time
 }
 
 func (c *cache) load(now time.Time, ttl time.Duration, lookup func() (interface{}, error)) (interface{}, error) {
 	v, _ := c.value.Load().(*value)
 	if v != nil {
-		if now.Before(v.evict.Add(-ttl/2)) || !atomic.CompareAndSwapUint64(&c.reload, 0, 1) {
+		if now.Before(v.update) || !atomic.CompareAndSwapUint64(&c.reload, 0, 1) {
 			return v.value, v.err
 		}
 		defer atomic.StoreUint64(&c.reload, 0)
@@ -104,18 +104,26 @@ func (c *cache) load(now time.Time, ttl time.Duration, lookup func() (interface{
 		}
 	}
 
+	update := now.Add(ttl / 2)
+	expire := now.Add(ttl)
+
 	val, err := lookup()
 	// On error, retain the previous value if we are still within the TTL.
-	if err != nil && v != nil && now.Before(v.evict) {
+	if err != nil && v != nil && now.Before(v.expire) {
 		val = v.value
 		err = nil
+		// Keep the same expiration time so the cached value is eventually
+		// removed if we keep failing to update it.
+		expire = v.expire
 	}
 
 	v = &value{
-		value: val,
-		err:   err,
-		evict: now.Add(ttl), // TODO: jitter?
+		value:  val,
+		err:    err,
+		update: update,
+		expire: expire,
 	}
+
 	c.value.Store(v)
 	return v.value, v.err
 }
