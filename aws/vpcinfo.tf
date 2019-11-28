@@ -35,6 +35,6 @@ resource "aws_route53_record" "subnets" {
   type    = "TXT"
 
   records = [
-    "${formatlist("subnet=%s,cidr=%s,zone=%s", data.aws_subnet.list.*.id, data.aws_subnet.list.*.cidr_block, data.aws_subnet.list.*.availability_zone)}",
+    "${formatlist("subnet=%s&cidr=%s&zone=%s", data.aws_subnet.list.*.id, data.aws_subnet.list.*.cidr_block, data.aws_subnet.list.*.availability_zone)}",
   ]
 }
