@@ -63,6 +63,15 @@ injects DNS TXT records that expose information about the network topology.
 Data is stored URL-encoded in the TXT records, each record representing one
 VPC resource.
 
+Here is an example of how to deploy the resources to a VPC on AWS:
+
+```hcl
+module "vpcinfo" {
+  source = "git@github.com:segmentio/vpcinfo//aws"
+  vpc_id = "${aws_vpc.main.id}"
+}
+```
+
 ### Client
 
 The second component is a Go package which supports querying the TXT records and
@@ -71,6 +80,27 @@ since network topology does not change very often. We provide a Go client
 because this is what most of our infra is built in, but clients can be written
 in any languages and are pretty simple to construct: DNS client libraries and
 URL decoders are plenty out there.
+
+Here is an example of looking up the list of subnets in the VPC:
+
+```go
+package main
+
+import (
+    "github.com/segmentio/vpcinfo"
+)
+
+func main() {
+    subnets, err := vpcinfo.LookupSubnets()
+    if err != nil {
+        fmt.Println(err)
+    } else {
+        for _, s := range subnets {
+            fmt.Println(s)
+        }
+    }
+}
+```
 
 ### DNS
 
