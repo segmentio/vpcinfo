@@ -1,4 +1,4 @@
-# vpcinfo
+# vpcinfo [![GoDoc](https://godoc.org/github.com/segmentio/vpcinfo?status.svg)](https://godoc.org/github.com/segmentio/vpcinfo)
 Experimental model for distributing non-sensitive VPC information.
 
 ## Motivation
