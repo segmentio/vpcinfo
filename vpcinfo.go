@@ -26,7 +26,7 @@ var DefaultRegistry = &Registry{
 }
 
 // LookupPlatofmr returns the name of the VPC platform.
-func LookupPlatform() (string, error) {
+func LookupPlatform() (Platform, error) {
 	return DefaultRegistry.LookupPlatform(context.Background())
 }
 
@@ -36,7 +36,7 @@ func LookupSubnets() (Subnets, error) {
 }
 
 // LookupZone returns the name of the current VPC zone.
-func LookupZone() (string, error) {
+func LookupZone() (Zone, error) {
 	return DefaultRegistry.LookupZone(context.Background())
 }
 
@@ -83,23 +83,22 @@ func parse(s string, x interface{}) error {
 	return nil
 }
 
-type platform string
-
-const (
-	aws     platform = "aws"
-	unknown platform = "unknown"
-)
-
-func (p platform) lookupZone(ctx context.Context) (string, error) {
-	switch p {
-	case aws:
-		return awsZone(ctx)
-	default:
-		return "", nil
-	}
+// Platform is an interface representing the VPC platform that the program is
+// running.
+type Platform interface {
+	// Returns the name of the platform.
+	String() string
+	// Returns the zone that the program is running in.
+	LookupZone(context.Context) (Zone, error)
 }
 
-func whereAmI() (platform, error) {
+// Zone is a string type representing infrastructure zones.
+type Zone string
+
+// String returns z as a string value, satisfies the fmt.Stringer interface.
+func (z Zone) String() string { return string(z) }
+
+func whereAmI() (Platform, error) {
 	// https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/identify_ec2_instances.html
 	for _, path := range [...]string{
 		"/sys/devices/virtual/dmi/id/product_uuid",
@@ -110,18 +109,22 @@ func whereAmI() (platform, error) {
 			if os.IsNotExist(err) {
 				continue
 			}
-			return "", err
+			return nil, err
 		}
 		s := string(b)
 		switch {
 		case strings.HasPrefix(s, "EC2"), strings.HasPrefix(s, "ec2"):
-			return aws, nil
+			return aws{}, nil
 		}
 	}
-	return unknown, nil
+	return unknown{}, nil
 }
 
-func awsZone(ctx context.Context) (string, error) {
+type aws struct{}
+
+func (aws) String() string { return "aws" }
+
+func (aws) LookupZone(ctx context.Context) (Zone, error) {
 	c, err := (&net.Dialer{}).DialContext(ctx, "tcp4", "169.254.169.254:80")
 	if err != nil {
 		return "", err
@@ -129,5 +132,11 @@ func awsZone(ctx context.Context) (string, error) {
 	defer c.Close()
 	io.WriteString(c, "GET /latest/meta-data/placement/availability-zone HTTP/1.0\r\n\r\n")
 	b, err := ioutil.ReadAll(c)
-	return string(b), err
+	return Zone(b), err
 }
+
+type unknown struct{}
+
+func (unknown) String() string { return "unknown" }
+
+func (unknown) LookupZone(ctx context.Context) (Zone, error) { return "", ctx.Err() }

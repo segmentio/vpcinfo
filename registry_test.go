@@ -13,8 +13,8 @@ func TestRegistryLookupPlatform(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	switch p {
-	case "aws", "unknown":
+	switch p.(type) {
+	case aws, unknown:
 		t.Log("platform:", p)
 	default:
 		t.Error("unrecognized platform:", p)

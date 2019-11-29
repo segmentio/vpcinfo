@@ -32,17 +32,18 @@ type Registry struct {
 	TTL time.Duration
 
 	subnets  cache // Subnets
-	platform cache // string
-	zone     cache // string
+	platform cache // Platform
+	zone     cache // Zone
 }
 
 // LookupPlatform returns the name of the VPC platform, which will be either
 // "aws" or "unknown".
-func (r *Registry) LookupPlatform(ctx context.Context) (string, error) {
-	return makeString(r.platform.load(r.ttl(), func() (interface{}, error) {
-		p, err := whereAmI()
-		return string(p), err
-	}))
+func (r *Registry) LookupPlatform(ctx context.Context) (Platform, error) {
+	v, err := r.platform.load(r.ttl(), func() (interface{}, error) {
+		return whereAmI()
+	})
+	p, _ := v.(Platform)
+	return p, err
 }
 
 // LookupSubnets returns the list of subnets in the VPC.
@@ -51,7 +52,7 @@ func (r *Registry) LookupPlatform(ctx context.Context) (string, error) {
 // should treat it as a read-only value and avoid modifying it to prevent race
 // conditions.
 func (r *Registry) LookupSubnets(ctx context.Context) (Subnets, error) {
-	return makeSubnets(r.subnets.load(r.ttl(), func() (interface{}, error) {
+	v, err := r.subnets.load(r.ttl(), func() (interface{}, error) {
 		ctx, cancel := r.withTimeout(ctx)
 		defer cancel()
 
@@ -69,12 +70,14 @@ func (r *Registry) LookupSubnets(ctx context.Context) (Subnets, error) {
 		}
 
 		return subnets, nil
-	}))
+	})
+	s, _ := v.(Subnets)
+	return s, err
 }
 
 // LookupZone returns the name of the VPC zone that the program is running in.
-func (r *Registry) LookupZone(ctx context.Context) (string, error) {
-	return makeString(r.zone.load(r.ttl(), func() (interface{}, error) {
+func (r *Registry) LookupZone(ctx context.Context) (Zone, error) {
+	v, err := (r.zone.load(r.ttl(), func() (interface{}, error) {
 		ctx, cancel := r.withTimeout(ctx)
 		defer cancel()
 
@@ -83,8 +86,10 @@ func (r *Registry) LookupZone(ctx context.Context) (string, error) {
 			return nil, err
 		}
 
-		return platform(p).lookupZone(ctx)
+		return p.LookupZone(ctx)
 	}))
+	z, _ := v.(Zone)
+	return z, err
 }
 
 func (r *Registry) resolver() Resolver {
@@ -165,18 +170,4 @@ func (c *cache) load(ttl time.Duration, lookup func() (interface{}, error)) (int
 
 	c.value.Store(v)
 	return v.value, v.err
-}
-
-func makeString(v interface{}, err error) (string, error) {
-	if err != nil {
-		return "", err
-	}
-	return v.(string), nil
-}
-
-func makeSubnets(v interface{}, err error) (Subnets, error) {
-	if err != nil {
-		return nil, err
-	}
-	return v.(Subnets), nil
 }
