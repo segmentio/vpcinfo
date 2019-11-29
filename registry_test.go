@@ -2,6 +2,7 @@ package vpcinfo
 
 import (
 	"context"
+	"os"
 	"sync"
 	"sync/atomic"
 	"testing"
@@ -11,6 +12,9 @@ import (
 func TestRegistryLookupPlatform(t *testing.T) {
 	p, err := LookupPlatform()
 	if err != nil {
+		if os.IsPermission(err) {
+			t.Skip(err)
+		}
 		t.Fatal(err)
 	}
 	switch p.(type) {
@@ -24,6 +28,9 @@ func TestRegistryLookupPlatform(t *testing.T) {
 func TestRegistryLookupZone(t *testing.T) {
 	z, err := LookupZone()
 	if err != nil {
+		if os.IsPermission(err) {
+			t.Skip(err)
+		}
 		t.Fatal(err)
 	}
 	t.Log("zone:", z)
