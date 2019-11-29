@@ -106,7 +106,7 @@ func whereAmI() (Platform, error) {
 	} {
 		b, err := ioutil.ReadFile(path)
 		if err != nil {
-			if os.IsNotExist(err) {
+			if os.IsNotExist(err) || os.IsPermission(err) {
 				continue
 			}
 			return nil, err
