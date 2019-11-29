@@ -7,9 +7,13 @@ package vpcinfo
 import (
 	"context"
 	"fmt"
+	"io"
+	"io/ioutil"
 	"net"
 	"net/url"
+	"os"
 	"reflect"
+	"strings"
 	"time"
 )
 
@@ -17,12 +21,23 @@ import (
 // package.
 var DefaultRegistry = &Registry{
 	Resolver: ResolverWithDomain(DefaultDomain, net.DefaultResolver),
-	TTL:      time.Minute,
+	Timeout:  2 * time.Second,
+	TTL:      1 * time.Minute,
+}
+
+// LookupPlatofmr returns the name of the VPC platform.
+func LookupPlatform() (string, error) {
+	return DefaultRegistry.LookupPlatform(context.Background())
 }
 
 // LookupSubnets returns the list of subnets in the VPC.
 func LookupSubnets() (Subnets, error) {
 	return DefaultRegistry.LookupSubnets(context.Background())
+}
+
+// LookupZone returns the name of the current VPC zone.
+func LookupZone() (string, error) {
+	return DefaultRegistry.LookupZone(context.Background())
 }
 
 func parse(s string, x interface{}) error {
@@ -66,4 +81,53 @@ func parse(s string, x interface{}) error {
 	}
 
 	return nil
+}
+
+type platform string
+
+const (
+	aws     platform = "aws"
+	unknown platform = "unknown"
+)
+
+func (p platform) lookupZone(ctx context.Context) (string, error) {
+	switch p {
+	case aws:
+		return awsZone(ctx)
+	default:
+		return "", nil
+	}
+}
+
+func whereAmI() (platform, error) {
+	// https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/identify_ec2_instances.html
+	for _, path := range [...]string{
+		"/sys/devices/virtual/dmi/id/product_uuid",
+		"/sys/hypervisor/uuid",
+	} {
+		b, err := ioutil.ReadFile(path)
+		if err != nil {
+			if os.IsNotExist(err) {
+				continue
+			}
+			return "", err
+		}
+		s := string(b)
+		switch {
+		case strings.HasPrefix(s, "EC2"), strings.HasPrefix(s, "ec2"):
+			return aws, nil
+		}
+	}
+	return unknown, nil
+}
+
+func awsZone(ctx context.Context) (string, error) {
+	c, err := (&net.Dialer{}).DialContext(ctx, "tcp4", "169.254.169.254:80")
+	if err != nil {
+		return "", err
+	}
+	defer c.Close()
+	io.WriteString(c, "GET /latest/meta-data/placement/availability-zone HTTP/1.0\r\n\r\n")
+	b, err := ioutil.ReadAll(c)
+	return string(b), err
 }

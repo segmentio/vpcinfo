@@ -8,7 +8,28 @@ import (
 	"time"
 )
 
-func TestRegistry(t *testing.T) {
+func TestRegistryLookupPlatform(t *testing.T) {
+	p, err := LookupPlatform()
+	if err != nil {
+		t.Fatal(err)
+	}
+	switch p {
+	case "aws", "unknown":
+		t.Log("platform:", p)
+	default:
+		t.Error("unrecognized platform:", p)
+	}
+}
+
+func TestRegistryLookupZone(t *testing.T) {
+	z, err := LookupZone()
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Log("zone:", z)
+}
+
+func TestRegistryLookupSubnets(t *testing.T) {
 	cacheMisses := uint32(0)
 
 	r := &Registry{
@@ -23,7 +44,8 @@ func TestRegistry(t *testing.T) {
 				return nil, ctx.Err()
 			}
 		}),
-		TTL: 100 * time.Millisecond,
+		Timeout: 1 * time.Second,
+		TTL:     100 * time.Millisecond,
 	}
 
 	ctx, cancel := context.WithCancel(context.Background())

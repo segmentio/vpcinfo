@@ -20,13 +20,29 @@ type Registry struct {
 	// If nil, net.DefaultResolver is used instead.
 	Resolver Resolver
 
+	// Time limit for blocking operations ran by this registry.
+	//
+	// Zero means to apply no limit.
+	Timeout time.Duration
+
 	// Limits how long cached entries are retained before attempting to refresh
 	// them from the resolver.
 	//
 	// Defaults to 1 minute.
 	TTL time.Duration
 
-	subnets cache // Subnets
+	subnets  cache // Subnets
+	platform cache // string
+	zone     cache // string
+}
+
+// LookupPlatform returns the name of the VPC platform, which will be either
+// "aws" or "unknown".
+func (r *Registry) LookupPlatform(ctx context.Context) (string, error) {
+	return makeString(r.platform.load(r.ttl(), func() (interface{}, error) {
+		p, err := whereAmI()
+		return string(p), err
+	}))
 }
 
 // LookupSubnets returns the list of subnets in the VPC.
@@ -35,7 +51,10 @@ type Registry struct {
 // should treat it as a read-only value and avoid modifying it to prevent race
 // conditions.
 func (r *Registry) LookupSubnets(ctx context.Context) (Subnets, error) {
-	v, err := r.subnets.load(time.Now(), r.ttl(), func() (interface{}, error) {
+	return makeSubnets(r.subnets.load(r.ttl(), func() (interface{}, error) {
+		ctx, cancel := r.withTimeout(ctx)
+		defer cancel()
+
 		records, err := r.resolver().LookupTXT(ctx, "subnets")
 		if err != nil {
 			return nil, err
@@ -50,11 +69,22 @@ func (r *Registry) LookupSubnets(ctx context.Context) (Subnets, error) {
 		}
 
 		return subnets, nil
-	})
-	if err != nil {
-		return nil, err
-	}
-	return v.(Subnets), nil
+	}))
+}
+
+// LookupZone returns the name of the VPC zone that the program is running in.
+func (r *Registry) LookupZone(ctx context.Context) (string, error) {
+	return makeString(r.zone.load(r.ttl(), func() (interface{}, error) {
+		ctx, cancel := r.withTimeout(ctx)
+		defer cancel()
+
+		p, err := r.LookupPlatform(ctx)
+		if err != nil {
+			return nil, err
+		}
+
+		return platform(p).lookupZone(ctx)
+	}))
 }
 
 func (r *Registry) resolver() Resolver {
@@ -71,6 +101,13 @@ func (r *Registry) ttl() time.Duration {
 	return time.Minute
 }
 
+func (r *Registry) withTimeout(ctx context.Context) (context.Context, context.CancelFunc) {
+	if r.Timeout > 0 {
+		return context.WithTimeout(ctx, r.Timeout)
+	}
+	return context.WithCancel(ctx)
+}
+
 type cache struct {
 	value  atomic.Value // *value
 	reload uint64
@@ -84,7 +121,9 @@ type value struct {
 	expire time.Time
 }
 
-func (c *cache) load(now time.Time, ttl time.Duration, lookup func() (interface{}, error)) (interface{}, error) {
+func (c *cache) load(ttl time.Duration, lookup func() (interface{}, error)) (interface{}, error) {
+	now := time.Now()
+
 	v, _ := c.value.Load().(*value)
 	if v != nil {
 		if now.Before(v.update) || !atomic.CompareAndSwapUint64(&c.reload, 0, 1) {
@@ -126,4 +165,18 @@ func (c *cache) load(now time.Time, ttl time.Duration, lookup func() (interface{
 
 	c.value.Store(v)
 	return v.value, v.err
+}
+
+func makeString(v interface{}, err error) (string, error) {
+	if err != nil {
+		return "", err
+	}
+	return v.(string), nil
+}
+
+func makeSubnets(v interface{}, err error) (Subnets, error) {
+	if err != nil {
+		return nil, err
+	}
+	return v.(Subnets), nil
 }
