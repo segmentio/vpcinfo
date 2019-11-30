@@ -7,9 +7,9 @@ package vpcinfo
 import (
 	"context"
 	"fmt"
-	"io"
 	"io/ioutil"
 	"net"
+	"net/http"
 	"net/url"
 	"os"
 	"reflect"
@@ -125,13 +125,15 @@ type aws struct{}
 func (aws) String() string { return "aws" }
 
 func (aws) LookupZone(ctx context.Context) (Zone, error) {
-	c, err := (&net.Dialer{}).DialContext(ctx, "tcp4", "169.254.169.254:80")
+	r, err := httpClient.Get("http://169.254.169.254/latest/meta-data/placement/availability-zone")
 	if err != nil {
 		return "", err
 	}
-	defer c.Close()
-	io.WriteString(c, "GET /latest/meta-data/placement/availability-zone HTTP/1.0\r\n\r\n")
-	b, err := ioutil.ReadAll(c)
+	defer r.Body.Close()
+	b, err := ioutil.ReadAll(r.Body)
+	if err != nil {
+		return "", err
+	}
 	return Zone(b), err
 }
 
@@ -140,3 +142,10 @@ type unknown struct{}
 func (unknown) String() string { return "unknown" }
 
 func (unknown) LookupZone(ctx context.Context) (Zone, error) { return "", ctx.Err() }
+
+var httpClient = &http.Client{
+	Transport: &http.Transport{
+		DisableCompression: true,
+		DisableKeepAlives:  true,
+	},
+}
