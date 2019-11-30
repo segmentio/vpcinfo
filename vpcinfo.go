@@ -25,7 +25,7 @@ var DefaultRegistry = &Registry{
 	TTL:      1 * time.Minute,
 }
 
-// LookupPlatofmr returns the name of the VPC platform.
+// LookupPlatform returns the name of the VPC platform.
 func LookupPlatform() (Platform, error) {
 	return DefaultRegistry.LookupPlatform(context.Background())
 }
