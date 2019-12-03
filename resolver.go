@@ -14,7 +14,7 @@ type Resolver interface {
 const (
 	// DefaultDomain is the default domain used when initializing the default
 	// resolver.
-	DefaultDomain = "vpc.local"
+	DefaultDomain = "vpcinfo.local"
 )
 
 // ResolverWithDomain wraps the resolver passed as argument to append the given

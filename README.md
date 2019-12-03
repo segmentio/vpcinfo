@@ -109,7 +109,7 @@ operating systems have lots of infrastructure for, and DNS clients are usually
 available in every major programming language, making it simple to build
 programs that leverage this information.
 
-By default, the Terraform module configures a new DNS zone called `vpc.local`
+By default, the Terraform module configures a new DNS zone called `vpcinfo.local`
 where DNS records are written. The Go client package is also configured to use
 this default domain name. Relying on a well-known domain, independent from
 corporation-specific names, helps deploy this solution in various environments

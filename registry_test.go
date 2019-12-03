@@ -79,9 +79,9 @@ func TestRegistryLookupSubnets(t *testing.T) {
 		}
 	}
 
-	if miss := atomic.LoadUint32(&cacheMisses); miss != 2 {
+	if miss := atomic.LoadUint32(&cacheMisses); miss != 4 {
 		t.Error("invalid cache misses")
-		t.Log("expected: 2")
+		t.Log("expected: 4")
 		t.Log("found:   ", miss)
 	}
 }
