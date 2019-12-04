@@ -157,3 +157,9 @@ var httpClient = &http.Client{
 		DisableKeepAlives:  true,
 	},
 }
+
+type endpoints map[string]string
+
+func (e endpoints) String() string {
+	return fmt.Sprintf("list of %d resource(s)", len(e))
+}

@@ -2,6 +2,7 @@ package vpcinfo
 
 import (
 	"context"
+	"log"
 	"net"
 	"sync"
 	"sync/atomic"
@@ -31,7 +32,7 @@ type Registry struct {
 	// Defaults to 1 minute.
 	TTL time.Duration
 
-	endpoints cache // map[string]string
+	endpoints cache // endpoints
 	subnets   cache // Subnets
 	platform  cache // Platform
 	zone      cache // Zone
@@ -40,7 +41,7 @@ type Registry struct {
 // LookupPlatform returns the name of the VPC platform, which will be either
 // "aws" or "unknown".
 func (r *Registry) LookupPlatform(ctx context.Context) (Platform, error) {
-	v, err := r.platform.load(r.ttl(), func() (interface{}, error) {
+	v, err := r.platform.load("platform", r.ttl(), func() (interface{}, error) {
 		return whereAmI()
 	})
 	p, _ := v.(Platform)
@@ -53,7 +54,7 @@ func (r *Registry) LookupPlatform(ctx context.Context) (Platform, error) {
 // should treat it as a read-only value and avoid modifying it to prevent race
 // conditions.
 func (r *Registry) LookupSubnets(ctx context.Context) (Subnets, error) {
-	v, err := r.subnets.load(r.ttl(), func() (interface{}, error) {
+	v, err := r.subnets.load("subnets", r.ttl(), func() (interface{}, error) {
 		ctx, cancel := r.withTimeout(ctx)
 		defer cancel()
 
@@ -78,7 +79,7 @@ func (r *Registry) LookupSubnets(ctx context.Context) (Subnets, error) {
 
 // LookupZone returns the name of the VPC zone that the program is running in.
 func (r *Registry) LookupZone(ctx context.Context) (Zone, error) {
-	v, err := (r.zone.load(r.ttl(), func() (interface{}, error) {
+	v, err := (r.zone.load("zone", r.ttl(), func() (interface{}, error) {
 		ctx, cancel := r.withTimeout(ctx)
 		defer cancel()
 
@@ -94,13 +95,13 @@ func (r *Registry) LookupZone(ctx context.Context) (Zone, error) {
 }
 
 func (r *Registry) lookupTXT(ctx context.Context, name string) ([]string, error) {
-	v, err := r.endpoints.load(r.ttl(), func() (interface{}, error) {
+	v, err := r.endpoints.load("endpoints", r.ttl(), func() (interface{}, error) {
 		records, err := r.resolver().LookupTXT(ctx, "")
 		if err != nil {
 			return nil, err
 		}
 
-		endpoints := make(map[string]string)
+		endpoints := make(endpoints)
 
 		for _, r := range records {
 			k, v := splitNameAndValue(r)
@@ -112,7 +113,7 @@ func (r *Registry) lookupTXT(ctx context.Context, name string) ([]string, error)
 	if err != nil {
 		return nil, err
 	}
-	return r.resolver().LookupTXT(ctx, v.(map[string]string)[name])
+	return r.resolver().LookupTXT(ctx, v.(endpoints)[name])
 }
 
 func (r *Registry) resolver() Resolver {
@@ -149,7 +150,7 @@ type value struct {
 	expire time.Time
 }
 
-func (c *cache) load(ttl time.Duration, lookup func() (interface{}, error)) (interface{}, error) {
+func (c *cache) load(what string, ttl time.Duration, lookup func() (interface{}, error)) (interface{}, error) {
 	now := time.Now()
 
 	v, _ := c.value.Load().(*value)
@@ -177,11 +178,16 @@ func (c *cache) load(ttl time.Duration, lookup func() (interface{}, error)) (int
 	val, err := lookup()
 	// On error, retain the previous value if we are still within the TTL.
 	if err != nil && v != nil && now.Before(v.expire) {
+		log.Printf("WARN vpcinfo - retaining previously cached %s entry after failure to refresh - %v", what, err)
 		val = v.value
 		err = nil
 		// Keep the same expiration time so the cached value is eventually
 		// removed if we keep failing to update it.
 		expire = v.expire
+	} else if err != nil {
+		log.Printf("ERROR vpcinfo - error loading %s - %v", what, err)
+	} else {
+		log.Printf("NOTICE vpcinfo - updated %s to %s", what, val)
 	}
 
 	v = &value{

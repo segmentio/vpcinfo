@@ -19,6 +19,26 @@ func (s Subnet) String() string {
 // Subnets is a slice type which represents a list of subnets.
 type Subnets []Subnet
 
+// Format writes subnets to w using the formatting verb v.
+//
+// The following formats are supported:
+//
+//     s    formats a human-readable summary of the subnets
+//     v    formats the subnet list as a slice of strings
+//
+func (subnets Subnets) Format(w fmt.State, v rune) {
+	switch v {
+	case 's':
+		zones := make(map[string]struct{})
+		for _, s := range subnets {
+			zones[s.Zone] = struct{}{}
+		}
+		fmt.Fprintf(w, "list of %d subnet(s) in %d zone(s)", len(subnets), len(zones))
+	case 'v':
+		fmt.Fprint(w, ([]Subnet)(subnets))
+	}
+}
+
 // LookupAddr returns the subnet that addr belongs to.
 func (subnets Subnets) LookupAddr(addr net.Addr) Subnet {
 	var ip net.IP
