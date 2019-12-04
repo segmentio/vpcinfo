@@ -38,5 +38,10 @@ type resolverWithDomain struct {
 }
 
 func (r *resolverWithDomain) LookupTXT(ctx context.Context, name string) ([]string, error) {
-	return r.resolver.LookupTXT(ctx, strings.TrimSuffix(name, ".")+r.domain)
+	if name == "" {
+		name = strings.TrimPrefix(r.domain, ".")
+	} else {
+		name = strings.TrimSuffix(name, ".") + r.domain
+	}
+	return r.resolver.LookupTXT(ctx, name)
 }

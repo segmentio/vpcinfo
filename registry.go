@@ -178,14 +178,14 @@ func (c *cache) load(what string, ttl time.Duration, lookup func() (interface{},
 	val, err := lookup()
 	// On error, retain the previous value if we are still within the TTL.
 	if err != nil && v != nil && now.Before(v.expire) {
-		log.Printf("WARN vpcinfo - retaining previously cached %s entry after failure to refresh - %v", what, err)
+		log.Printf("WARN vpcinfo - retaining previously cached %s entry after failure to refresh: %v", what, err)
 		val = v.value
-		err = nil
+		err = v.err
 		// Keep the same expiration time so the cached value is eventually
 		// removed if we keep failing to update it.
 		expire = v.expire
 	} else if err != nil {
-		log.Printf("ERROR vpcinfo - error loading %s - %v", what, err)
+		log.Printf("ERROR vpcinfo - error loading %s: %v", what, err)
 	} else {
 		log.Printf("NOTICE vpcinfo - updated %s to %s", what, val)
 	}
