@@ -31,9 +31,10 @@ type Registry struct {
 	// Defaults to 1 minute.
 	TTL time.Duration
 
-	subnets  cache // Subnets
-	platform cache // Platform
-	zone     cache // Zone
+	endpoints cache // map[string]string
+	subnets   cache // Subnets
+	platform  cache // Platform
+	zone      cache // Zone
 }
 
 // LookupPlatform returns the name of the VPC platform, which will be either
@@ -56,7 +57,7 @@ func (r *Registry) LookupSubnets(ctx context.Context) (Subnets, error) {
 		ctx, cancel := r.withTimeout(ctx)
 		defer cancel()
 
-		records, err := r.resolver().LookupTXT(ctx, "subnets")
+		records, err := r.lookupTXT(ctx, "subnets")
 		if err != nil {
 			return nil, err
 		}
@@ -90,6 +91,28 @@ func (r *Registry) LookupZone(ctx context.Context) (Zone, error) {
 	}))
 	z, _ := v.(Zone)
 	return z, err
+}
+
+func (r *Registry) lookupTXT(ctx context.Context, name string) ([]string, error) {
+	v, err := r.endpoints.load(r.ttl(), func() (interface{}, error) {
+		records, err := r.resolver().LookupTXT(ctx, "")
+		if err != nil {
+			return nil, err
+		}
+
+		endpoints := make(map[string]string)
+
+		for _, r := range records {
+			k, v := splitNameAndValue(r)
+			endpoints[k] = v
+		}
+
+		return endpoints, nil
+	})
+	if err != nil {
+		return nil, err
+	}
+	return r.resolver().LookupTXT(ctx, v.(map[string]string)[name])
 }
 
 func (r *Registry) resolver() Resolver {

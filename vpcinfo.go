@@ -83,6 +83,14 @@ func parse(s string, x interface{}) error {
 	return nil
 }
 
+func splitNameAndValue(s string) (string, string) {
+	i := strings.IndexByte(s, '=')
+	if i < 0 {
+		return s, ""
+	}
+	return s[:i], s[i+1:]
+}
+
 // Platform is an interface representing the VPC platform that the program is
 // running.
 type Platform interface {
