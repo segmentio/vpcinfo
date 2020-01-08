@@ -117,9 +117,17 @@ func zoneFromSubnets(subnets []Subnet) (Zone, error) {
 
 	for _, addr := range addrs {
 		for _, subnet := range subnets {
-			log.Printf(">>> Checking subnet %s against address %s\n", subnet.String(), addr.String())
+			var ip net.IP
+			switch v := addr.(type) {
+			case *net.IPNet:
+				ip = v.IP
+			case *net.IPAddr:
+				ip = v.IP
+			}
 
-			if subnet.CIDR.Contains(net.ParseIP(addr.String())) {
+			log.Printf(">>> Checking subnet %s against address %s\n", subnet.String(), ip.String())
+
+			if subnet.CIDR.Contains(ip) {
 				return Zone(subnet.Zone), nil
 			}
 		}
