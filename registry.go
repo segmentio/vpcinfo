@@ -42,7 +42,11 @@ type Registry struct {
 // "aws" or "unknown".
 func (r *Registry) LookupPlatform(ctx context.Context) (Platform, error) {
 	v, err := r.platform.load("platform", r.ttl(), func() (interface{}, error) {
-		return whereAmI()
+		subnets, err := r.LookupSubnets(ctx)
+		if err != nil {
+			return nil, err
+		}
+		return whereAmI(subnets)
 	})
 	p, _ := v.(Platform)
 	return p, err

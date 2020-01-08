@@ -6,7 +6,6 @@ package vpcinfo
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"io/ioutil"
 	"log"
@@ -108,7 +107,41 @@ type Zone string
 // String returns z as a string value, satisfies the fmt.Stringer interface.
 func (z Zone) String() string { return string(z) }
 
-func whereAmI() (Platform, error) {
+func zoneFromSubnets(subnets []Subnet) (Zone, error) {
+	log.Println("NOTICE vpcinfo - getting zone from subnets")
+	addrs, err := net.InterfaceAddrs()
+	if err != nil {
+		return "", err
+	}
+
+	for _, addr := range addrs {
+		for _, subnet := range subnets {
+			if subnet.CIDR.Contains(net.ParseIP(addr.String())) {
+				return Zone(subnet.Zone), nil
+			}
+		}
+	}
+
+	return "", fmt.Errorf("could not find ip address in subnets")
+}
+
+func zoneFromMetadata() (Zone, error) {
+	log.Println("NOTICE vpcinfo - getting zone from ec2 metadata")
+	r, err := httpClient.Get(
+		"http://169.254.169.254/latest/meta-data/placement/availability-zone",
+	)
+	if err != nil {
+		return "", err
+	}
+	defer r.Body.Close()
+	b, err := ioutil.ReadAll(r.Body)
+	if err != nil {
+		return "", err
+	}
+	return Zone(b), err
+}
+
+func whereAmI(subnets []Subnet) (Platform, error) {
 	// https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/identify_ec2_instances.html
 	for _, path := range [...]string{
 		"/sys/devices/virtual/dmi/id/product_uuid",
@@ -124,46 +157,30 @@ func whereAmI() (Platform, error) {
 		s := string(b)
 		switch {
 		case strings.HasPrefix(s, "EC2"), strings.HasPrefix(s, "ec2"):
-			return aws{}, nil
+			zone, err := zoneFromSubnets(subnets)
+			if err == nil {
+				return aws{zone}, nil
+			}
+
+			zone, err = zoneFromMetadata()
+			if err != nil {
+				return nil, err
+			}
+
+			return aws{zone}, nil
 		}
 	}
 	return unknown{}, nil
 }
 
-type aws struct{}
+type aws struct {
+	zone Zone
+}
 
-func (aws) String() string { return "aws" }
+func (a aws) String() string { return "aws" }
 
-func (aws) LookupZone(ctx context.Context) (Zone, error) {
-	info, err := os.Stat("/etc/host-environment")
-	if err == nil && !info.IsDir() {
-		// Get az from host-environment file
-		log.Println("NOTICE vpcinfo - getting zone from host-environment")
-		b, err := ioutil.ReadFile("/etc/host-environment")
-		if err != nil {
-			return "", err
-		}
-		for _, line := range strings.Split(string(b), "\n") {
-			if strings.HasPrefix(line, "SERVER_AZ=") {
-				return Zone(line[len("SERVER_AZ="):]), nil
-			}
-		}
-
-		return "", errors.New("Could not read AZ in /etc/host-environment")
-	} else {
-		// Get az from ec2 metadata
-		log.Println("NOTICE vpcinfo - getting zone from ec2 metadata")
-		r, err := httpClient.Get("http://169.254.169.254/latest/meta-data/placement/availability-zone")
-		if err != nil {
-			return "", err
-		}
-		defer r.Body.Close()
-		b, err := ioutil.ReadAll(r.Body)
-		if err != nil {
-			return "", err
-		}
-		return Zone(b), err
-	}
+func (a aws) LookupZone(ctx context.Context) (Zone, error) {
+	return a.zone, nil
 }
 
 type unknown struct{}
