@@ -6,8 +6,10 @@ package vpcinfo
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io/ioutil"
+	"log"
 	"net"
 	"net/http"
 	"net/url"
@@ -133,16 +135,35 @@ type aws struct{}
 func (aws) String() string { return "aws" }
 
 func (aws) LookupZone(ctx context.Context) (Zone, error) {
-	r, err := httpClient.Get("http://169.254.169.254/latest/meta-data/placement/availability-zone")
-	if err != nil {
-		return "", err
+	info, err := os.Stat("/etc/host-environment")
+	if err == nil && !info.IsDir() {
+		// Get az from host-environment file
+		log.Println("NOTICE vpcinfo - getting zone from host-environment")
+		b, err := ioutil.ReadFile("/etc/host-environment")
+		if err != nil {
+			return "", err
+		}
+		for _, line := range strings.Split(string(b), "\n") {
+			if strings.HasPrefix(line, "SERVER_AZ=") {
+				return Zone(line[len("SERVER_AZ="):]), nil
+			}
+		}
+
+		return "", errors.New("Could not read AZ in /etc/host-environment")
+	} else {
+		// Get az from ec2 metadata
+		log.Println("NOTICE vpcinfo - getting zone from ec2 metadata")
+		r, err := httpClient.Get("http://169.254.169.254/latest/meta-data/placement/availability-zone")
+		if err != nil {
+			return "", err
+		}
+		defer r.Body.Close()
+		b, err := ioutil.ReadAll(r.Body)
+		if err != nil {
+			return "", err
+		}
+		return Zone(b), err
 	}
-	defer r.Body.Close()
-	b, err := ioutil.ReadAll(r.Body)
-	if err != nil {
-		return "", err
-	}
-	return Zone(b), err
 }
 
 type unknown struct{}
