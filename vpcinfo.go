@@ -111,16 +111,21 @@ func zoneFromSubnets(subnets []Subnet) (Zone, error) {
 	log.Println("NOTICE vpcinfo - getting zone from subnets")
 	addrs, err := net.InterfaceAddrs()
 	if err != nil {
+		log.Printf(">> Error getting interface addresses: %+v\n", err)
 		return "", err
 	}
 
 	for _, addr := range addrs {
 		for _, subnet := range subnets {
+			log.Printf(">>> Checking subnet %s against address %s\n", subnet.String(), addr.String())
+
 			if subnet.CIDR.Contains(net.ParseIP(addr.String())) {
 				return Zone(subnet.Zone), nil
 			}
 		}
 	}
+
+	log.Printf(">> Got no matches\n")
 
 	return "", fmt.Errorf("could not find ip address in subnets")
 }
