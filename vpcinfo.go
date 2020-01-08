@@ -163,3 +163,40 @@ type endpoints map[string]string
 func (e endpoints) String() string {
 	return fmt.Sprintf("list of %d resource(s)", len(e))
 }
+
+type multiPlatform []Platform
+
+func (p multiPlatform) String() string { return "multi" }
+
+func (p multiPlatform) LookupZone(ctx context.Context) (Zone, error) {
+	for _, platform := range p {
+		if zone, err := platform.LookupZone(ctx); err == nil {
+			return zone, nil
+		}
+	}
+
+	return "", fmt.Errorf("no zone found.")
+}
+
+type networkInterface struct {
+	Subnets []Subnet
+}
+
+func (p networkInterface) String() string { return "networkInterface" }
+
+func (p networkInterface) LookupZone(ctx context.Context) (Zone, error) {
+	addrs, err := net.InterfaceAddrs()
+	if err != nil {
+		return "", err
+	}
+
+	for _, addr := range addrs {
+		for _, subnet := range p.Subnets {
+			if subnet.CIDR.Contains(net.ParseIP(addr.String())) {
+				return Zone(subnet.Zone), nil
+			}
+		}
+	}
+
+	return "", fmt.Errorf("ip addresses don't match subnets.")
+}

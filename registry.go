@@ -42,8 +42,19 @@ type Registry struct {
 // "aws" or "unknown".
 func (r *Registry) LookupPlatform(ctx context.Context) (Platform, error) {
 	v, err := r.platform.load("platform", r.ttl(), func() (interface{}, error) {
-		return whereAmI()
+		where, err := whereAmI()
+		if err != nil {
+			return nil, err
+		}
+
+		subnets, err := r.LookupSubnets(ctx)
+		if err != nil {
+			return nil, err
+		}
+
+		return multiPlatform{networkInterface{Subnets: subnets}, where}, nil
 	})
+
 	p, _ := v.(Platform)
 	return p, err
 }
