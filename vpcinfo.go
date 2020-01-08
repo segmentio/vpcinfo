@@ -8,7 +8,6 @@ import (
 	"context"
 	"fmt"
 	"io/ioutil"
-	"log"
 	"net"
 	"net/http"
 	"net/url"
@@ -108,7 +107,6 @@ type Zone string
 func (z Zone) String() string { return string(z) }
 
 func zoneFromSubnets(subnets []Subnet) (Zone, error) {
-	log.Println("NOTICE vpcinfo - getting zone from subnets")
 	addrs, err := net.InterfaceAddrs()
 	if err != nil {
 		return "", err
@@ -116,17 +114,24 @@ func zoneFromSubnets(subnets []Subnet) (Zone, error) {
 
 	for _, addr := range addrs {
 		for _, subnet := range subnets {
-			if subnet.CIDR.Contains(net.ParseIP(addr.String())) {
+			var ip net.IP
+			switch v := addr.(type) {
+			case *net.IPNet:
+				ip = v.IP
+			case *net.IPAddr:
+				ip = v.IP
+			}
+
+			if subnet.CIDR.Contains(ip) {
 				return Zone(subnet.Zone), nil
 			}
 		}
 	}
 
-	return "", fmt.Errorf("could not find ip address in subnets")
+	return "", nil
 }
 
 func zoneFromMetadata() (Zone, error) {
-	log.Println("NOTICE vpcinfo - getting zone from ec2 metadata")
 	r, err := httpClient.Get(
 		"http://169.254.169.254/latest/meta-data/placement/availability-zone",
 	)
@@ -158,7 +163,10 @@ func whereAmI(subnets []Subnet) (Platform, error) {
 		switch {
 		case strings.HasPrefix(s, "EC2"), strings.HasPrefix(s, "ec2"):
 			zone, err := zoneFromSubnets(subnets)
-			if err == nil {
+			if err != nil {
+				return nil, err
+			}
+			if zone != "" {
 				return aws{zone}, nil
 			}
 

@@ -42,7 +42,7 @@ var (
 
 func TestRegistryLookupPlatform(t *testing.T) {
 	cacheMisses := uint32(0)
-	r := getTestRegistry(&cacheMisses)
+	r := newTestRegistry(&cacheMisses)
 	ctx := context.Background()
 
 	p, err := r.LookupPlatform(ctx)
@@ -62,7 +62,7 @@ func TestRegistryLookupPlatform(t *testing.T) {
 
 func TestRegistryLookupZone(t *testing.T) {
 	cacheMisses := uint32(0)
-	r := getTestRegistry(&cacheMisses)
+	r := newTestRegistry(&cacheMisses)
 	ctx := context.Background()
 
 	z, err := r.LookupZone(ctx)
@@ -77,7 +77,7 @@ func TestRegistryLookupZone(t *testing.T) {
 
 func TestRegistryLookupSubnets(t *testing.T) {
 	cacheMisses := uint32(0)
-	r := getTestRegistry(&cacheMisses)
+	r := newTestRegistry(&cacheMisses)
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
@@ -131,7 +131,7 @@ func BenchmarkRegistry(b *testing.B) {
 	}
 }
 
-func getTestRegistry(cacheMisses *uint32) *Registry {
+func newTestRegistry(cacheMisses *uint32) *Registry {
 	return &Registry{
 		Resolver: resolverFunc(func(ctx context.Context, name string) ([]string, error) {
 			switch name {
