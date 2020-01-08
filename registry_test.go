@@ -41,7 +41,11 @@ var (
 )
 
 func TestRegistryLookupPlatform(t *testing.T) {
-	p, err := LookupPlatform()
+	cacheMisses := uint32(0)
+	r := getTestRegistry(&cacheMisses)
+	ctx := context.Background()
+
+	p, err := r.LookupPlatform(ctx)
 	if err != nil {
 		if os.IsPermission(err) {
 			t.Skip(err)
@@ -57,7 +61,11 @@ func TestRegistryLookupPlatform(t *testing.T) {
 }
 
 func TestRegistryLookupZone(t *testing.T) {
-	z, err := LookupZone()
+	cacheMisses := uint32(0)
+	r := getTestRegistry(&cacheMisses)
+	ctx := context.Background()
+
+	z, err := r.LookupZone(ctx)
 	if err != nil {
 		if os.IsPermission(err) {
 			t.Skip(err)
@@ -69,29 +77,7 @@ func TestRegistryLookupZone(t *testing.T) {
 
 func TestRegistryLookupSubnets(t *testing.T) {
 	cacheMisses := uint32(0)
-
-	r := &Registry{
-		Resolver: resolverFunc(func(ctx context.Context, name string) ([]string, error) {
-			switch name {
-			case "":
-				return testEndpoints[:], nil
-			case "subnets":
-				atomic.AddUint32(&cacheMisses, 1)
-				delay := time.NewTimer(10 * time.Millisecond)
-				defer delay.Stop()
-				select {
-				case <-delay.C:
-					return testTXT[:], nil
-				case <-ctx.Done():
-					return nil, ctx.Err()
-				}
-			default:
-				return nil, fmt.Errorf("unknown vpc resource: %s", name)
-			}
-		}),
-		Timeout: 1 * time.Second,
-		TTL:     100 * time.Millisecond,
-	}
+	r := getTestRegistry(&cacheMisses)
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
@@ -142,5 +128,30 @@ func BenchmarkRegistry(b *testing.B) {
 
 	for i := 0; i < b.N; i++ {
 		_, _ = r.LookupSubnets(ctx)
+	}
+}
+
+func getTestRegistry(cacheMisses *uint32) *Registry {
+	return &Registry{
+		Resolver: resolverFunc(func(ctx context.Context, name string) ([]string, error) {
+			switch name {
+			case "":
+				return testEndpoints[:], nil
+			case "subnets":
+				atomic.AddUint32(cacheMisses, 1)
+				delay := time.NewTimer(10 * time.Millisecond)
+				defer delay.Stop()
+				select {
+				case <-delay.C:
+					return testTXT[:], nil
+				case <-ctx.Done():
+					return nil, ctx.Err()
+				}
+			default:
+				return nil, fmt.Errorf("unknown vpc resource: %s", name)
+			}
+		}),
+		Timeout: 1 * time.Second,
+		TTL:     100 * time.Millisecond,
 	}
 }
