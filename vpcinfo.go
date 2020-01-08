@@ -113,15 +113,15 @@ func zoneFromSubnets(subnets []Subnet) (Zone, error) {
 	}
 
 	for _, addr := range addrs {
-		for _, subnet := range subnets {
-			var ip net.IP
-			switch v := addr.(type) {
-			case *net.IPNet:
-				ip = v.IP
-			case *net.IPAddr:
-				ip = v.IP
-			}
+		var ip net.IP
+		switch v := addr.(type) {
+		case *net.IPNet:
+			ip = v.IP
+		case *net.IPAddr:
+			ip = v.IP
+		}
 
+		for _, subnet := range subnets {
 			if subnet.CIDR.Contains(ip) {
 				return Zone(subnet.Zone), nil
 			}
