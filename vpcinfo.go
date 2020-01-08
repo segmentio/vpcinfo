@@ -177,7 +177,7 @@ type aws struct {
 	zone Zone
 }
 
-func (a aws) String() string { return "aws" }
+func (aws) String() string { return "aws" }
 
 func (a aws) LookupZone(ctx context.Context) (Zone, error) {
 	return a.zone, nil
