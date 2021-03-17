@@ -36,8 +36,8 @@ locals {
 }
 
 data "aws_subnet" "list" {
-  count = length(subnet_ids)
-  id    = element(subnet_ids, count.index)
+  count = length(local.subnet_ids)
+  id    = element(local.subnet_ids, count.index)
 }
 
 resource "aws_route53_zone" "vpc" {
