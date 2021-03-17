@@ -32,7 +32,7 @@ data "aws_subnet_ids" "subnets" {
 }
 
 locals {
-  subnet_ids = sort(list(data.aws_subnet_ids.subnets.ids))
+  subnet_ids = sort(tolist(data.aws_subnet_ids.subnets.ids))
 }
 
 data "aws_subnet" "list" {
