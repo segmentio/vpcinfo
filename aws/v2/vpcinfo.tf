@@ -32,8 +32,8 @@ data "aws_subnet_ids" "subnets" {
 }
 
 data "aws_subnet" "list" {
-  for_each = data.aws_subnet_ids.subnets
-  id       = each.id
+  for_each = data.aws_subnet_ids.subnets.ids
+  id       = each.key
 }
 
 resource "aws_route53_zone" "vpc" {
