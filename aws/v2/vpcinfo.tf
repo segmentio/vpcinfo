@@ -52,9 +52,11 @@ resource "aws_route53_record" "resource_endpoints" {
   ttl     = var.ttl
   type    = "TXT"
 
-  records = [
-    formatlist("%s=%s", keys(local.resource_endpoints), values(local.resource_endpoints)),
-  ]
+  records = formatlist(
+    "%s=%s",
+    keys(local.resource_endpoints),
+    values(local.resource_endpoints),
+  )
 }
 
 resource "aws_route53_record" "subnets" {
@@ -63,7 +65,10 @@ resource "aws_route53_record" "subnets" {
   ttl     = var.ttl
   type    = "TXT"
 
-  records = [
-    formatlist("subnet=%s&cidr=%s&zone=%s", data.aws_subnet.list.*.id, data.aws_subnet.list.*.cidr_block, data.aws_subnet.list.*.availability_zone),
-  ]
+  records = formatlist(
+    "subnet=%s&cidr=%s&zone=%s",
+    data.aws_subnet.list.*.id,
+    data.aws_subnet.list.*.cidr_block,
+    data.aws_subnet.list.*.availability_zone,
+  )
 }
