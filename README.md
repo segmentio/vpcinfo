@@ -1,4 +1,8 @@
 # vpcinfo [![Circle CI](https://circleci.com/gh/segmentio/vpcinfo.svg?style=shield&circle-token=e58118c6b28b14de098ff718d69439257011eebe)](https://circleci.com/gh/segmentio/vpcinfo) [![Go Report Card](https://goreportcard.com/badge/github.com/segmentio/vpcinfo)](https://goreportcard.com/report/github.com/segmentio/vpcinfo) [![GoDoc](https://godoc.org/github.com/segmentio/vpcinfo?status.svg)](https://godoc.org/github.com/segmentio/vpcinfo)
+
+> **Note**  
+> Segment has paused maintenance on this project, but may return it to an active status in the future. Issues and pull requests from external contributors are not being considered, although internal contributions may appear from time to time. The project remains available under its open source license for anyone to use.
+
 Experimental model for distributing non-sensitive VPC information.
 
 ## Motivation
