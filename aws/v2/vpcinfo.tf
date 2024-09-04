@@ -35,11 +35,11 @@ data "aws_subnets" "subnets" {
 }
 
 locals {
-  subnet_ids = sort(tolist(data.aws_subnets.subnets.ids))
+  subnet_ids_map = { for idx, id in data.aws_subnets.subnets.ids : idx => id }
 }
 
 data "aws_subnet" "list" {
-  for_each = toset(local.subnet_ids)
+  for_each = local.subnet_ids_map
   id       = each.value
 }
 
@@ -67,13 +67,19 @@ resource "aws_route53_record" "resource_endpoints" {
 }
 
 resource "aws_route53_record" "subnets" {
+  for_each = local.subnet_ids_map
+
   zone_id = aws_route53_zone.vpc.zone_id
   name    = format("%s.%s", local.resource_endpoints["subnets"], var.domain)
   ttl     = var.ttl
   type    = "TXT"
 
   records = [
-    for subnet in data.aws_subnet.list :
-    format("subnet=%s&cidr=%s&zone=%s", subnet.id, subnet.cidr_block, subnet.availability_zone)
+    format(
+      "subnet=%s&cidr=%s&zone=%s",
+      each.value,
+      data.aws_subnet.list[each.key].cidr_block,
+      data.aws_subnet.list[each.key].availability_zone
+    )
   ]
 }
