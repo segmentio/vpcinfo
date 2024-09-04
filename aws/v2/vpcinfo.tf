@@ -27,12 +27,15 @@ locals {
   }
 }
 
-data "aws_subnet_ids" "subnets" {
-  vpc_id = var.vpc_id
+data "aws_subnets" "subnets" {
+    filter {
+    name   = "vpc-id"
+    values = [var.vpc_id]
+  }
 }
 
 locals {
-  subnet_ids = sort(tolist(data.aws_subnet_ids.subnets.ids))
+  subnet_ids = sort(tolist(data.aws_subnets.subnets.ids))
 }
 
 data "aws_subnet" "list" {
