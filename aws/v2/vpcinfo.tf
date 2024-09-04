@@ -27,17 +27,20 @@ locals {
   }
 }
 
-data "aws_subnet_ids" "subnets" {
-  vpc_id = var.vpc_id
+data "aws_subnets" "subnets" {
+    filter {
+    name   = "vpc-id"
+    values = [var.vpc_id]
+  }
 }
 
 locals {
-  subnet_ids = sort(tolist(data.aws_subnet_ids.subnets.ids))
+  subnet_ids_map = { for idx, id in data.aws_subnets.subnets.ids : idx => id }
 }
 
 data "aws_subnet" "list" {
-  count = length(local.subnet_ids)
-  id    = element(local.subnet_ids, count.index)
+  for_each = local.subnet_ids_map
+  id       = each.value
 }
 
 resource "aws_route53_zone" "vpc" {
@@ -64,15 +67,19 @@ resource "aws_route53_record" "resource_endpoints" {
 }
 
 resource "aws_route53_record" "subnets" {
+  for_each = local.subnet_ids_map
+
   zone_id = aws_route53_zone.vpc.zone_id
   name    = format("%s.%s", local.resource_endpoints["subnets"], var.domain)
   ttl     = var.ttl
   type    = "TXT"
 
-  records = formatlist(
-    "subnet=%s&cidr=%s&zone=%s",
-    data.aws_subnet.list[*].id,
-    data.aws_subnet.list[*].cidr_block,
-    data.aws_subnet.list[*].availability_zone,
-  )
+  records = [
+    format(
+      "subnet=%s&cidr=%s&zone=%s",
+      each.value,
+      data.aws_subnet.list[each.key].cidr_block,
+      data.aws_subnet.list[each.key].availability_zone
+    )
+  ]
 }
