@@ -39,8 +39,8 @@ locals {
 }
 
 data "aws_subnet" "list" {
-  count = length(local.subnet_ids)
-  id    = element(local.subnet_ids, count.index)
+  for_each = toset(local.subnet_ids)
+  id       = each.value
 }
 
 resource "aws_route53_zone" "vpc" {
@@ -72,10 +72,8 @@ resource "aws_route53_record" "subnets" {
   ttl     = var.ttl
   type    = "TXT"
 
-  records = formatlist(
-    "subnet=%s&cidr=%s&zone=%s",
-    data.aws_subnet.list[*].id,
-    data.aws_subnet.list[*].cidr_block,
-    data.aws_subnet.list[*].availability_zone,
-  )
+  records = [
+    for subnet in data.aws_subnet.list :
+    format("subnet=%s&cidr=%s&zone=%s", subnet.id, subnet.cidr_block, subnet.availability_zone)
+  ]
 }
